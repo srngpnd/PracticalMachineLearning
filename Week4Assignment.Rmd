@@ -1,0 +1,102 @@
+---
+title: "Practical Machine Learning Week 4"
+author: "Sarang Pande"
+date: "8 April 2019"
+output: html_document
+---
+
+## Overview
+
+The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases.
+
+
+## Load Libraries
+
+```{r setup}
+knitr::opts_chunk$set(echo = TRUE)
+library(caret)
+library(randomForest)
+library(gbm)
+```
+
+## Pull and Prepare Data
+
+```{r data}
+# Load the data into a variable
+Train_Url <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+Test_Url  <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+Training_Data <- read.csv(url(Train_Url))
+Testing_Data  <- read.csv(url(Test_Url))
+
+# Remove first five predictors
+Training_Data <- Training_Data[,-(1:5)]
+Testing_Data <- Testing_Data[,-(1:5)]
+
+# Remove NA columns with threshold 95%
+NA_Columns <- sapply(Training_Data, function(x) mean(is.na(x))) > 0.95
+
+Training_Data <- Training_Data[,NA_Columns == FALSE]
+Testing_Data <- Testing_Data[,NA_Columns == FALSE]
+
+# Remove Nearly Zero Variance variables
+Near_Zero_Variance <- nearZeroVar(Training_Data)
+Train_Set <- Training_Data[, -Near_Zero_Variance]
+Test_Set  <- Testing_Data[, -Near_Zero_Variance]
+
+# Dimensions of our data
+dim(Train_Set)
+dim(Test_Set)
+
+# Data Partitioning (60% and 40% according to our course)
+Train_Data_Partition <- createDataPartition(Train_Set$classe, p=0.6, list=FALSE)
+Training_Train_Set <- Train_Set[Train_Data_Partition,]
+Testing_Train_Set <- Train_Set[-Train_Data_Partition,]
+
+# Dimensions of our new data
+dim(Training_Train_Set)
+dim(Testing_Train_Set)
+```
+
+## Prediction Models
+
+### Random Forest Model
+```{r }
+set.seed(1)
+# Create Model
+Random_Forect_Model <- train(classe ~ ., data = Training_Train_Set, method="rf", ntree = 100)
+
+# Predict
+Random_Forect_Model_Prediction <- predict(Random_Forect_Model, Testing_Train_Set)
+Random_Forect_Model_Prediction_Confusion_Matrix <- confusionMatrix(Random_Forect_Model_Prediction, Testing_Train_Set$classe)
+
+# Check Accuracy
+Random_Forect_Model_Prediction_Confusion_Matrix$overall
+```
+So the prediction accuracy is roughly 99% for random forest model.
+
+### Gradient Boosting Model
+```{r }
+set.seed(1)
+# Create Model
+Gradient_Boosting_Model <- train(classe ~ ., data = Training_Train_Set, method="gbm", verbose = FALSE)
+
+# Predict
+Gradient_Boosting_Model_Prediction <- predict(Gradient_Boosting_Model, Testing_Train_Set)
+Gradient_Boosting_Model_Prediction_Confusion_Matrix <- confusionMatrix(Gradient_Boosting_Model_Prediction, Testing_Train_Set$classe)
+
+# Check Accuracy
+Gradient_Boosting_Model_Prediction_Confusion_Matrix$overall
+```
+So the prediction accuracy is roughly 98% for gradient boosting model.
+
+## Conclusion
+
+Since the random forest model is more accurate than gradient boosting model on our data, we will be using Random Forest for our final prediction.
+
+```{r predict}
+Final_Predictions <- predict(Random_Forect_Model, newdata=Test_Set)
+Final_Predictions
+```
+
+
